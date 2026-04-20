@@ -1,9 +1,10 @@
 <?php
 return [
     'api_drama' => [
-        'key'  => env('API_DRAMA_KEY'),
-        'base' => env('API_DRAMA_BASE', 'https://api-drama.dobda.id'),
-    ],
+    'key'    => env('API_DRAMA_KEY'),
+    'base'   => env('API_DRAMA_BASE', 'https://api-drama.dobda.id'),
+    'secret' => env('API_DRAMA_SECRET'),
+],
     'stripe' => [
         'key'            => env('STRIPE_KEY'),
         'secret'         => env('STRIPE_SECRET'),

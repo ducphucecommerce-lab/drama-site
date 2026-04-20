@@ -53,14 +53,14 @@
               <a href="{{ route('films.watch', $id) }}?platform={{ $platform }}&ep={{ $nextEp }}"
                  class="btn-ep btn-ep-next">Tập tiếp → </a>
             @else
-              <a href="{{ route('vip') }}" class="btn-ep btn-ep-vip">🔒 VIP để xem tập {{ $nextEp }}</a>
+              <a href="{{ route('subscription.index') }}" class="btn-ep btn-ep-vip">🔒 VIP để xem tập {{ $nextEp }}</a>
             @endif
           @endif
         </div>
 
         {{-- Free / VIP notice --}}
         @if($episode <= 3)
-          <div class="free-notice">✅ Tập miễn phí — <a href="{{ route('vip') }}">Mua VIP</a> để xem không giới hạn</div>
+          <div class="free-notice">✅ Tập miễn phí — <a href="{{ route('subscription.index') }}">Mua VIP</a> để xem không giới hạn</div>
         @endif
       </div>
     </div>
@@ -78,7 +78,7 @@
               $canWatch = $isFree || $isVip;
               $active   = $epNum == $episode;
             @endphp
-            <a href="{{ $canWatch ? route('films.watch', $id).'?platform='.$platform.'&ep='.$epNum : route('vip') }}"
+            <a href="{{ $canWatch ? route('films.watch', $id).'?platform='.$platform.'&ep='.$epNum : route('subscription.index') }}"
                class="sidebar-ep {{ $active ? 'active' : '' }} {{ !$canWatch ? 'locked' : '' }}">
               Tập {{ $epNum }}
               @if(!$canWatch) <span>🔒</span> @endif
@@ -97,7 +97,7 @@
               $canWatch = $isFree || $isVip;
               $active   = $i == $episode;
             @endphp
-            <a href="{{ $canWatch ? route('films.watch', $id).'?platform='.$platform.'&ep='.$i : route('vip') }}"
+            <a href="{{ $canWatch ? route('films.watch', $id).'?platform='.$platform.'&ep='.$i : route('subscription.index') }}"
                class="sidebar-ep {{ $active ? 'active' : '' }} {{ !$canWatch ? 'locked' : '' }}">
               Tập {{ $i }}
               @if(!$canWatch) <span>🔒</span> @endif

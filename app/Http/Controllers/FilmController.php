@@ -12,7 +12,7 @@ class FilmController extends Controller
     // Trang chủ
     public function index(Request $request)
     {
-        $platform  = $request->get('platform', 'dramabox');
+        $platform  = $request->get('platform', 'shortmax');
         $tab       = $request->get('tab', 'recommend');
         $page      = (int) $request->get('page', 1);
 
@@ -28,7 +28,7 @@ class FilmController extends Controller
     // Chi tiết phim
     public function detail(Request $request, string $id)
     {
-        $platform = $request->get('platform', 'dramabox');
+        $platform = $request->get('platform', 'shortmax');
         $film     = $this->api->getDetail($id, $platform);
 
         if (!$film) {
@@ -49,7 +49,7 @@ class FilmController extends Controller
     // Trang xem phim
     public function watch(Request $request, string $id)
     {
-        $platform = $request->get('platform', 'dramabox');
+        $platform = $request->get('platform', 'shortmax');
         $episode  = (int) $request->get('ep', 1);
 
         // Kiểm tra VIP

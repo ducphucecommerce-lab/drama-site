@@ -49,10 +49,10 @@
 
           @auth
             @if(!auth()->user()->isVip())
-              <a href="{{ route('vip') }}" class="btn-vip-outline">🌟 Mua VIP xem full</a>
+              <a href="{{ route('subscription.index') }}" class="btn-vip-outline">🌟 Mua VIP xem full</a>
             @endif
           @else
-            <a href="{{ route('vip') }}" class="btn-vip-outline">🌟 VIP — xem không giới hạn</a>
+            <a href="{{ route('subscription.index') }}" class="btn-vip-outline">🌟 VIP — xem không giới hạn</a>
           @endauth
         </div>
 
@@ -68,7 +68,7 @@
                   $isVip  = auth()->check() && auth()->user()->isVip();
                   $canWatch = $isFree || $isVip;
                 @endphp
-                <a href="{{ $canWatch ? route('films.watch', $id).'?platform='.$platform.'&ep='.$epNum : route('vip') }}"
+                <a href="{{ $canWatch ? route('films.watch', $id).'?platform='.$platform.'&ep='.$epNum : route('subscription.index') }}"
                    class="ep-item {{ $canWatch ? '' : 'ep-locked' }}">
                   {{ $epNum }}
                   @if(!$isFree && !$isVip) <span class="lock-icon">🔒</span> @endif

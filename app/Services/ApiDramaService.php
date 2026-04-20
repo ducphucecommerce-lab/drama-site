@@ -1,97 +1,144 @@
 <?php
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+
 class ApiDramaService
 {
-    // ── Dữ liệu giả để test giao diện ────────────────────────
-    private function fakeDramas(int $count = 20): array
-    {
-        $titles = [
-            'Tổng Tài Bí Ẩn', 'Hôn Nhân Sắp Đặt', 'Báo Thù Ngọt Ngào',
-            'Em Là Vợ Sếp', 'Thiên Kim Giả Mạo', 'Yêu Lại Từ Đầu',
-            'Bí Mật Hào Môn', 'Tình Yêu Định Mệnh', 'Cô Dâu Thay Thế',
-            'Triệu Phú Nghèo Khó', 'Nữ Cường Xuyên Không', 'Hoàng Tử Sói',
-            'CEO Lạnh Lùng', 'Nàng Tiên Cá', 'Anh Hùng Bị Thất Sủng',
-            'Vợ Giả Chồng Thật', 'Tình Địch Trở Thành Tình Nhân',
-            'Bác Sĩ Hoàng Gia', 'Đại Tiểu Thư Nổi Loạn', 'Kẻ Phản Diện Dễ Thương',
-        ];
-        $genres  = ['Tình cảm', 'Hành động', 'Hài hước', 'Cổ trang', 'Hiện đại'];
-        $covers  = [
-            'https://awscover.netshort.com/tos-vod-mya-v-da59d5a2040f5f77/imageG/production/2041687656382857217/1776493756619-0501666617282046-3比4jpg~tplv-vod-rs:651:868.webp',
-            'https://awscover.netshort.com/tos-vod-mya-v-da59d5a2040f5f77/coverG/prod/-1446654500_20260420-152311.jpg~tplv-vod-rs:651:868.webp',
-            'https://awscover.netshort.com/tos-vod-mya-v-da59d5a2040f5f77/imageG/production/2041684074564681730/1776587996251-8289870698009258-3比4jpg~tplv-vod-rs:651:868.webp',
-            'https://awscover.netshort.com/tos-vod-mya-v-da59d5a2040f5f77/imageG/production/2042218205463707650/1776571577634-.826048795359644-3比4jpg~tplv-vod-rs:651:868.webp',
-            'https://awscover.netshort.com/tos-vod-mya-v-da59d5a2040f5f77/imageG/production/2041850940239118338/1776571010951-2107881807857601-3比4jpg~tplv-vod-rs:651:868.webp',
-        ];
-        $platforms = ['dramabox', 'reelshort', 'netshort', 'goodshort', 'shortmax'];
+    private string $base;
+    private string $secret;
+    private string $lang = 'vi';
 
-        $dramas = [];
-        for ($i = 0; $i < $count; $i++) {
-            $dramas[] = [
-                'id'          => 'demo_' . ($i + 1),
-                'drama_id'    => 'demo_' . ($i + 1),
-                'title'       => $titles[$i % count($titles)],
-                'cover'       => $covers[$i % count($covers)],
-                'cover_url'   => $covers[$i % count($covers)],
-                'episodes'    => rand(20, 80),
-                'genre'       => $genres[$i % count($genres)],
-                'platform'    => $platforms[$i % count($platforms)],
-                'description' => 'Một câu chuyện tình cảm đầy cảm xúc với nhiều twist bất ngờ. Mỗi tập chỉ 1-2 phút nhưng đầy kịch tính và hấp dẫn.',
-                'year'        => 2024,
-                'rating'      => round(rand(35, 50) / 10, 1),
-                'episode_list'=> array_map(fn($e) => ['episode' => $e], range(1, rand(20, 40))),
-            ];
+    public function __construct()
+    {
+        $this->base   = rtrim(config('services.api_drama.base', 'https://api-drama.dobda.id'), '/');
+        $this->secret = config('services.api_drama.secret', '');
+    }
+
+    private function buildHeaders(string $method, string $path): array
+    {
+        $timestamp = (string)(int)(microtime(true) * 1000);
+        $payload   = strtoupper($method) . ':' . $path . ':' . $timestamp;
+        $signature = hash_hmac('sha256', $payload, $this->secret);
+        return [
+            'X-Timestamp' => $timestamp,
+            'X-Signature' => $signature,
+            'Accept'      => 'application/json',
+        ];
+    }
+
+    private function get(string $endpoint, array $params = [], int $cacheMins = 10): ?array
+    {
+        $query    = http_build_query(array_filter($params));
+        $path     = '/api/v2/' . ltrim($endpoint, '/') . ($query ? '?' . $query : '');
+        $cacheKey = 'drama:' . md5($path);
+
+        return Cache::remember($cacheKey, now()->addMinutes($cacheMins), function () use ($path) {
+            try {
+                $headers = $this->buildHeaders('GET', $path);
+                $res = Http::timeout(15)->withHeaders($headers)->get($this->base . $path);
+                if ($res->successful()) return $res->json();
+                Log::warning('API Drama error', ['status' => $res->status(), 'path' => $path]);
+                return null;
+            } catch (\Throwable $e) {
+                Log::error('API Drama: ' . $e->getMessage());
+                return null;
+            }
+        });
+    }
+
+    public function getHomeList(string $platform = 'freereels', int $page = 1, int $limit = 20): array
+    {
+        $data = $this->get('home', ['category_p' => $platform, 'lang' => $this->lang]);
+        return $data['data'] ?? [];
+    }
+
+    public function getDiscover(string $platform = 'freereels', int $page = 1): array
+    {
+        $data = $this->get('discover', ['category_p' => $platform, 'lang' => $this->lang, 'page' => $page]);
+        return $data['data'] ?? [];
+    }
+
+    public function getTrending(string $platform = 'freereels'): array
+    {
+        return $this->getDiscover($platform, 1);
+    }
+
+    public function getDetail(string $id, string $platform = 'freereels'): ?array
+    {
+        $data = $this->get('detail', ['category_p' => $platform, 'id' => $id, 'lang' => $this->lang], 30);
+        if (!$data || !isset($data['data'])) return null;
+        $detail = $data['data'];
+        if (isset($detail['chapters']) && is_array($detail['chapters'])) {
+            $detail['episode_list'] = array_map(fn($ch) => [
+                'episode' => $ch['index'] ?? $ch['id'],
+                'id'      => $ch['id'],
+                'title'   => $ch['title'] ?? 'Tập ' . ($ch['index'] ?? $ch['id']),
+            ], $detail['chapters']);
         }
-        return $dramas;
-    }
-
-    // ── Public API methods ────────────────────────────────────
-    public function getHomeList(string $platform = 'dramabox', int $page = 1, int $limit = 20): array
-    {
-        return $this->fakeDramas($limit);
-    }
-
-    public function search(string $keyword, string $platform = 'all', int $page = 1): array
-    {
-        return array_filter(
-            $this->fakeDramas(20),
-            fn($d) => str_contains(mb_strtolower($d['title']), mb_strtolower($keyword))
-        );
-    }
-
-    public function getDetail(string $id, string $platform = 'dramabox'): ?array
-    {
-        $dramas = $this->fakeDramas(20);
-        return $dramas[0]; // trả về phim đầu tiên làm demo
+        $detail['episodes'] = $detail['total_episodes'] ?? count($detail['chapters'] ?? []);
+        return $detail;
     }
 
     public function getStreamUrl(string $id, string $platform, int $episode = 1): ?string
     {
-        // Video mẫu để test player
-        return 'https://www.w3schools.com/html/mov_bbb.mp4';
+        $detail    = $this->getDetail($id, $platform);
+        $chapterId = $episode;
+        if ($detail && isset($detail['chapters'])) {
+            foreach ($detail['chapters'] as $ch) {
+                if (($ch['index'] ?? null) == $episode) { $chapterId = $ch['id']; break; }
+            }
+        }
+        $data = $this->get('video', [
+            'category_p' => $platform, 'id' => $id,
+            'chapterId'  => $chapterId, 'lang' => $this->lang,
+        ], 1);
+        if (!$data || empty($data['data']['streams'])) return null;
+        $streams = $data['data']['streams'];
+        foreach (['1080p', '720p', '480p', 'auto'] as $q) {
+            foreach ($streams as $s) {
+                if (($s['quality'] ?? '') === $q) return $s['url'];
+            }
+        }
+        return $streams[0]['url'] ?? null;
     }
 
-    public function getByGenre(string $genre, string $platform = 'all', int $page = 1): array
+    public function search(string $keyword, string $platform = 'freereels', int $page = 1): array
     {
-        return $this->fakeDramas(20);
+        $data = $this->get('search', ['category_p' => $platform, 'q' => $keyword, 'lang' => $this->lang, 'page' => $page], 5);
+        return $data['data'] ?? [];
+    }
+
+    public function getByGenre(string $genre, string $platform = 'freereels', int $page = 1): array
+    {
+        return $this->getDiscover($platform, $page);
     }
 
     public function getPlatforms(): array
     {
+        $data = $this->get('categories', [], 1440);
+        if ($data && isset($data['data'])) {
+            $result = [];
+            foreach ($data['data'] as $cat) { $result[$cat['name']] = $cat['display_name']; }
+            return $result;
+        }
         return [
-            'dramabox'  => 'DramaBox',
-            'reelshort' => 'ReelShort',
-            'netshort'  => 'NetShort',
-            'goodshort' => 'GoodShort',
-            'shortmax'  => 'ShortMax',
-            'dramawave' => 'DramaWave',
-            'flextv'    => 'FlexTV',
-            'flickreels'=> 'FlickReels',
+            'freereels' => 'FreeReels', 'dramabox' => 'DramaBox',
+            'reelshort' => 'ReelShort', 'netshort' => 'NetShort',
+            'goodshort' => 'GoodShort', 'shortmax' => 'ShortMax',
+            'dramawave' => 'DramaWave', 'flickreels' => 'FlickReels',
+            'melolo'    => 'Melolo',    'dramabite' => 'DramaBite',
+            'reelife'   => 'Reelife',   'rapidtv' => 'RapidTV',
         ];
     }
 
-    public function getTrending(string $platform = 'all'): array
+    public function getBanner(string $platform = 'freereels'): array
     {
-        return $this->fakeDramas(20);
+        $data = $this->get('banner', ['category_p' => $platform, 'lang' => $this->lang], 30);
+        return $data['data'] ?? [];
     }
+
+    public function setLang(string $lang): self { $this->lang = $lang; return $this; }
 }

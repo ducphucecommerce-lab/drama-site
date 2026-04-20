@@ -22,7 +22,7 @@
         </div>
       </div>
       @if(!$user->isVip())
-        <a href="{{ route('vip') }}" class="btn-vip-large">🌟 Nâng cấp VIP</a>
+        <a href="{{ route('subscription.index') }}" class="btn-vip-large">🌟 Nâng cấp VIP</a>
       @endif
     </div>
   </div>
