@@ -109,7 +109,10 @@
   @else
     <div class="film-grid">
       @foreach($films as $film)
-        @php $fid = $film['id'] ?? $film['drama_id'] ?? '#'; @endphp
+        @php 
+  $fid = $film['id'] ?? $film['drama_id'] ?? '';
+  if(empty($fid)) continue;
+@endphp
         <a href="{{ route('films.detail', $fid) }}?platform={{ request('platform','freereels') }}&lang={{ session('lang','en') }}"
            class="film-card">
           <div class="card-thumb">
