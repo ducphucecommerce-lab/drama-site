@@ -1,148 +1,221 @@
 @extends('layouts.app')
-@section('title', 'Mua gói VIP - Xem phim không giới hạn')
+@section('title', app()->getLocale() === 'vi' ? 'Nang cap VIP - ' . config('app.name') : 'Upgrade to VIP - ' . config('app.name'))
 
 @section('content')
-<div class="container sub-page">
+<div class="sub-wrap">
 
-  {{-- Header --}}
-  <div class="sub-hero">
-    <h1>🌟 Gói VIP {{ $vipDays }} ngày</h1>
-    <p>Mở khóa toàn bộ nội dung từ 22+ nền tảng phim ngắn hàng đầu thế giới</p>
+  <div class="sub-header">
+    <h1 class="sub-title">
+      {{ app()->getLocale() === 'vi' ? 'Nang cap' : 'Upgrade to' }}
+      <span>VIP</span>
+    </h1>
+    <p class="sub-desc">
+      {{ app()->getLocale() === 'vi' ? 'Xem khong gioi han tu 22+ nen tang' : 'Watch unlimited from 22+ platforms' }}
+    </p>
   </div>
 
-  {{-- VIP Status --}}
-  @if($user->isVip())
-    <div class="alert alert-success" style="text-align:center;margin-bottom:24px">
-      ✅ Bạn đang là thành viên VIP — hết hạn: <strong>{{ $user->vip_expires_at->format('d/m/Y') }}</strong>
+  {{-- VIP Benefits --}}
+  <div class="sub-benefits">
+    <div class="sub-benefit-item">
+      <div class="sub-benefit-icon">&#10003;</div>
+      <span>{{ app()->getLocale() === 'vi' ? 'Xem tat ca cac tap khong gioi han' : 'Watch all episodes unlimited' }}</span>
     </div>
-  @endif
-
-  {{-- Features --}}
-  <div class="features-grid">
-    <div class="feature-card">
-      <div class="feature-icon">🎬</div>
-      <h3>22+ Nền tảng</h3>
-      <p>DramaBox, ReelShort, NetShort, GoodShort, ShortMax và nhiều hơn nữa</p>
+    <div class="sub-benefit-item">
+      <div class="sub-benefit-icon">&#10003;</div>
+      <span>{{ app()->getLocale() === 'vi' ? 'Khong quang cao' : 'No ads' }}</span>
     </div>
-    <div class="feature-card">
-      <div class="feature-icon">♾️</div>
-      <h3>Xem không giới hạn</h3>
-      <p>Toàn bộ tập phim, không giới hạn thời gian, không quảng cáo</p>
+    <div class="sub-benefit-item">
+      <div class="sub-benefit-icon">&#10003;</div>
+      <span>{{ app()->getLocale() === 'vi' ? 'Truy cap 22+ nen tang phim' : 'Access 22+ drama platforms' }}</span>
     </div>
-    <div class="feature-card">
-      <div class="feature-icon">📱</div>
-      <h3>Mọi thiết bị</h3>
-      <p>Xem trên điện thoại, máy tính bảng, laptop — mọi lúc mọi nơi</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🌏</div>
-      <h3>13 Ngôn ngữ</h3>
-      <p>Tiếng Việt, Anh, Hàn, Nhật, Trung và nhiều ngôn ngữ khác</p>
+    <div class="sub-benefit-item">
+      <div class="sub-benefit-icon">&#10003;</div>
+      <span>{{ app()->getLocale() === 'vi' ? 'Ho tro uu tien' : 'Priority support' }}</span>
     </div>
   </div>
 
-  {{-- Pricing --}}
-  <div class="pricing-box">
-    <div class="pricing-main">
-      <div class="price-vn">
-        <span class="price-amount">99.000đ</span>
-        <span class="price-period">/ {{ $vipDays }} ngày</span>
-      </div>
-      <div class="price-divider">hoặc</div>
-      <div class="price-intl">
-        <span class="price-amount">${{ $priceUsd }}</span>
-        <span class="price-period">/ {{ $vipDays }} days</span>
-      </div>
-    </div>
+  {{-- Plans --}}
+  <div class="plan-grid">
 
-    {{-- Payment buttons --}}
-    @auth
-      <div class="payment-methods">
-        <p class="payment-label">Chọn phương thức thanh toán:</p>
-
-        {{-- VNPay --}}
-        <form action="{{ route('payment.vnpay') }}" method="POST">
+    {{-- 1 Month --}}
+    <div class="plan-card">
+      <div class="plan-name">{{ app()->getLocale() === 'vi' ? '1 Thang' : '1 Month' }}</div>
+      <div class="plan-price">$5<span>/{{ app()->getLocale() === 'vi' ? 'thang' : 'mo' }}</span></div>
+      <div class="plan-save"></div>
+      <ul class="plan-features">
+        <li>{{ app()->getLocale() === 'vi' ? 'Xem khong gioi han 30 ngay' : 'Unlimited for 30 days' }}</li>
+        <li>{{ app()->getLocale() === 'vi' ? 'Gia thap nhat de thu' : 'Best price to try' }}</li>
+      </ul>
+      @auth
+        <form action="{{ route('payment.checkout') }}" method="POST">
           @csrf
-          <button type="submit" class="btn-payment vnpay">
-            <img src="{{ asset('img/vnpay-logo.png') }}" alt="VNPay" style="height:24px">
-            Thanh toán VNPay <span class="currency-note">(99.000đ)</span>
+          <input type="hidden" name="plan" value="1month">
+          <input type="hidden" name="coupon_code" id="coupon_1month">
+          <button type="submit" class="btn-plan btn-plan-outline">
+            {{ app()->getLocale() === 'vi' ? 'Chon goi nay' : 'Choose Plan' }}
           </button>
         </form>
+      @else
+        <a href="{{ route('login') }}" class="btn-plan btn-plan-outline">
+          {{ app()->getLocale() === 'vi' ? 'Dang nhap de mua' : 'Sign in to buy' }}
+        </a>
+      @endauth
+    </div>
 
-        {{-- Stripe --}}
-        <form action="{{ route('payment.stripe') }}" method="POST">
+    {{-- 3 Months (Featured) --}}
+    <div class="plan-card featured">
+      <div class="plan-badge">{{ app()->getLocale() === 'vi' ? 'Pho bien nhat' : 'Most Popular' }}</div>
+      <div class="plan-name">{{ app()->getLocale() === 'vi' ? '3 Thang' : '3 Months' }}</div>
+      <div class="plan-price">$12<span>/3 {{ app()->getLocale() === 'vi' ? 'thang' : 'mo' }}</span></div>
+      <div class="plan-save">{{ app()->getLocale() === 'vi' ? 'Tiet kiem 20%' : 'Save 20%' }}</div>
+      <ul class="plan-features">
+        <li>{{ app()->getLocale() === 'vi' ? 'Xem khong gioi han 90 ngay' : 'Unlimited for 90 days' }}</li>
+        <li>{{ app()->getLocale() === 'vi' ? 'Tiet kiem $3 so voi goi 1 thang' : 'Save $3 vs monthly' }}</li>
+      </ul>
+      @auth
+        <form action="{{ route('payment.checkout') }}" method="POST">
           @csrf
-          <button type="submit" class="btn-payment stripe">
-            💳 Thanh toán thẻ quốc tế (Stripe) <span class="currency-note">(${{ $priceUsd }})</span>
+          <input type="hidden" name="plan" value="3months">
+          <input type="hidden" name="coupon_code" id="coupon_3months">
+          <button type="submit" class="btn-plan">
+            {{ app()->getLocale() === 'vi' ? 'Chon goi nay' : 'Choose Plan' }}
           </button>
         </form>
-      </div>
-
-      <p class="payment-note">
-        🔒 Thanh toán bảo mật 100% — VNPay & Stripe được mã hóa SSL<br>
-        ⚡ Kích hoạt ngay sau khi thanh toán thành công
-      </p>
-    @else
-      <div style="text-align:center;padding:24px">
-        <p style="margin-bottom:16px">Bạn cần đăng nhập để mua gói VIP</p>
-        <a href="{{ route('login') }}" class="btn-vip-large">Đăng nhập ngay</a>
-        <span style="margin:0 12px;color:#666">hoặc</span>
-        <a href="{{ route('register') }}" class="btn-outline">Đăng ký miễn phí</a>
-      </div>
-    @endauth
-  </div>
-
-  {{-- Compare Free vs VIP --}}
-  <div class="compare-table">
-    <h2>So sánh gói</h2>
-    <table>
-      <thead>
-        <tr><th>Tính năng</th><th>Miễn phí</th><th>VIP</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Xem phim</td><td>3 tập đầu</td><td>✅ Không giới hạn</td></tr>
-        <tr><td>Số nền tảng</td><td>Tất cả</td><td>✅ Tất cả 22+</td></tr>
-        <tr><td>Chất lượng video</td><td>SD</td><td>✅ HD</td></tr>
-        <tr><td>Quảng cáo</td><td>Có</td><td>✅ Không có</td></tr>
-        <tr><td>Lưu lịch sử xem</td><td>✅</td><td>✅</td></tr>
-        <tr><td>Tìm kiếm nâng cao</td><td>Cơ bản</td><td>✅ Đầy đủ</td></tr>
-        <tr><td>Hỗ trợ</td><td>Cộng đồng</td><td>✅ Ưu tiên</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  {{-- Transaction History --}}
-  @if($transactions->isNotEmpty())
-    <div class="transaction-history">
-      <h2>Lịch sử giao dịch</h2>
-      <table class="tx-table">
-        <thead>
-          <tr><th>Ngày</th><th>Phương thức</th><th>Số tiền</th><th>Trạng thái</th><th>Hết hạn</th></tr>
-        </thead>
-        <tbody>
-          @foreach($transactions as $tx)
-            <tr>
-              <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
-              <td>{{ strtoupper($tx->payment_method) }}</td>
-              <td>
-                @if($tx->currency === 'VND')
-                  {{ number_format($tx->amount) }}đ
-                @else
-                  ${{ $tx->amount }}
-                @endif
-              </td>
-              <td>
-                <span class="status-badge status-{{ $tx->status }}">
-                  {{ ['pending'=>'Chờ xử lý','paid'=>'Thành công','failed'=>'Thất bại'][$tx->status] ?? $tx->status }}
-                </span>
-              </td>
-              <td>{{ $tx->expires_at?->format('d/m/Y') ?? '—' }}</td>
-            </tr>
-          @endforeach
-        </tbody>
-      </table>
+      @else
+        <a href="{{ route('login') }}" class="btn-plan">
+          {{ app()->getLocale() === 'vi' ? 'Dang nhap de mua' : 'Sign in to buy' }}
+        </a>
+      @endauth
     </div>
-  @endif
+
+    {{-- 6 Months --}}
+    <div class="plan-card">
+      <div class="plan-name">{{ app()->getLocale() === 'vi' ? '6 Thang' : '6 Months' }}</div>
+      <div class="plan-price">$20<span>/6 {{ app()->getLocale() === 'vi' ? 'thang' : 'mo' }}</span></div>
+      <div class="plan-save">{{ app()->getLocale() === 'vi' ? 'Tiet kiem 33%' : 'Save 33%' }}</div>
+      <ul class="plan-features">
+        <li>{{ app()->getLocale() === 'vi' ? 'Xem khong gioi han 180 ngay' : 'Unlimited for 180 days' }}</li>
+        <li>{{ app()->getLocale() === 'vi' ? 'Tiet kiem $10 so voi goi 1 thang' : 'Save $10 vs monthly' }}</li>
+      </ul>
+      @auth
+        <form action="{{ route('payment.checkout') }}" method="POST">
+          @csrf
+          <input type="hidden" name="plan" value="6months">
+          <input type="hidden" name="coupon_code" id="coupon_6months">
+          <button type="submit" class="btn-plan btn-plan-outline">
+            {{ app()->getLocale() === 'vi' ? 'Chon goi nay' : 'Choose Plan' }}
+          </button>
+        </form>
+      @else
+        <a href="{{ route('login') }}" class="btn-plan btn-plan-outline">
+          {{ app()->getLocale() === 'vi' ? 'Dang nhap de mua' : 'Sign in to buy' }}
+        </a>
+      @endauth
+    </div>
+
+  </div>
+
+  {{-- Coupon Code --}}
+  <div class="coupon-section">
+    <div class="coupon-title">{{ app()->getLocale() === 'vi' ? 'Ma khuyen mai' : 'Coupon Code' }}</div>
+    <div class="coupon-form">
+      <input type="text" id="couponInput" placeholder="{{ app()->getLocale() === 'vi' ? 'Nhap ma khuyen mai...' : 'Enter coupon code...' }}" class="coupon-input">
+      <button onclick="applyCoupon()" class="coupon-btn">{{ app()->getLocale() === 'vi' ? 'Ap dung' : 'Apply' }}</button>
+    </div>
+    <div id="couponMsg" class="coupon-msg"></div>
+  </div>
+
+  @auth
+    @if(auth()->user()->isVip())
+    <div class="current-vip">
+      <div class="current-vip-title">{{ app()->getLocale() === 'vi' ? 'Goi VIP hien tai cua ban' : 'Your current VIP' }}</div>
+      <div class="current-vip-expire">
+        {{ app()->getLocale() === 'vi' ? 'Het han:' : 'Expires:' }}
+        {{ auth()->user()->vip_expires_at ? auth()->user()->vip_expires_at->format('d/m/Y') : 'N/A' }}
+      </div>
+    </div>
+    @endif
+  @endauth
 
 </div>
+
+@push('styles')
+<style>
+.sub-wrap{padding:30px 24px 100px;max-width:960px;margin:0 auto}
+.sub-header{text-align:center;margin-bottom:24px}
+.sub-title{font-size:28px;font-weight:700;color:#fff;margin-bottom:8px}
+.sub-title span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sub-desc{font-size:14px;color:var(--text2)}
+.sub-benefits{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-bottom:28px}
+.sub-benefit-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:20px;padding:7px 14px}
+.sub-benefit-icon{width:18px;height:18px;border-radius:50%;background:rgba(52,211,153,0.2);color:#34d399;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.plan-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-xl);padding:24px;transition:border-color .2s;position:relative}
+.plan-card.featured{border-color:rgba(167,139,250,0.5);background:rgba(167,139,250,0.05)}
+.plan-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--grad);font-size:11px;font-weight:700;padding:3px 14px;border-radius:20px;color:#fff;white-space:nowrap}
+.plan-name{font-size:13px;color:var(--text2);margin-bottom:6px;font-weight:500}
+.plan-price{font-size:32px;font-weight:700;color:#fff;margin-bottom:2px}
+.plan-price span{font-size:13px;font-weight:400;color:var(--text2)}
+.plan-save{font-size:12px;color:#34d399;margin-bottom:14px;min-height:18px}
+.plan-features{list-style:none;margin-bottom:18px;display:flex;flex-direction:column;gap:8px}
+.plan-features li{font-size:13px;color:var(--text2);display:flex;align-items:center;gap:7px;padding-left:4px}
+.plan-features li::before{content:'?';color:#34d399;font-size:12px;flex-shrink:0}
+.btn-plan{width:100%;background:var(--grad);border:none;border-radius:var(--radius);padding:11px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;transition:opacity .2s;display:block;text-align:center;text-decoration:none}
+.btn-plan:hover{opacity:0.88}
+.btn-plan-outline{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.btn-plan-outline:hover{background:rgba(255,255,255,0.04);opacity:1;color:#fff}
+.coupon-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:20px}
+.coupon-title{font-size:14px;font-weight:600;color:#fff;margin-bottom:12px}
+.coupon-form{display:flex;gap:10px}
+.coupon-input{flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:#fff;outline:none;transition:border-color .2s}
+.coupon-input:focus{border-color:rgba(167,139,250,0.4)}
+.coupon-input::placeholder{color:var(--text3)}
+.coupon-btn{background:var(--grad);border:none;border-radius:var(--radius);padding:10px 20px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;white-space:nowrap}
+.coupon-msg{margin-top:10px;font-size:13px}
+.coupon-msg.success{color:#34d399}
+.coupon-msg.error{color:#f87171}
+.current-vip{background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);border-radius:var(--radius-lg);padding:16px 20px;text-align:center}
+.current-vip-title{font-size:14px;font-weight:600;color:#fff;margin-bottom:4px}
+.current-vip-expire{font-size:13px;color:var(--text2)}
+@media(max-width:768px){
+  .plan-grid{grid-template-columns:1fr;gap:20px}
+  .plan-card.featured{margin-top:12px}
+  .sub-wrap{padding:20px 16px 100px}
+  .sub-title{font-size:22px}
+}
+</style>
+@endpush
+
+@push('scripts')
+<script>
+function applyCoupon() {
+  var code = document.getElementById('couponInput').value.trim().toUpperCase();
+  var msg  = document.getElementById('couponMsg');
+  if (!code) return;
+
+  fetch('/coupon/check?code=' + encodeURIComponent(code))
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (data.valid) {
+        msg.className = 'coupon-msg success';
+        msg.textContent = (data.discount_type === 'percent')
+          ? 'Ma hop le! Giam ' + data.discount_value + '%'
+          : 'Ma hop le! Giam $' + data.discount_value;
+        document.getElementById('coupon_1month').value  = code;
+        document.getElementById('coupon_3months').value = code;
+        document.getElementById('coupon_6months').value = code;
+      } else {
+        msg.className = 'coupon-msg error';
+        msg.textContent = data.message || 'Ma khong hop le';
+      }
+    }).catch(function(){
+      msg.className = 'coupon-msg error';
+      msg.textContent = 'Loi ket noi, thu lai sau';
+    });
+}
+document.getElementById('couponInput').addEventListener('keypress', function(e){
+  if (e.key === 'Enter') applyCoupon();
+});
+</script>
+@endpush
 @endsection

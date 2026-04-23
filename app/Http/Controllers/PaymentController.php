@@ -1,170 +1,165 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\Subscription;
-use App\Services\VNPayService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Stripe\Stripe;
-use Stripe\Checkout\Session as StripeSession;
+use App\Models\User;
+use App\Models\Coupon;
 
 class PaymentController extends Controller
 {
-    public function __construct(private VNPayService $vnpay) {}
+    // G�i VIP
+    private array $plans = [
+        '1month'  => ['days' => 30,  'price' => 5,  'label' => '1 Month'],
+        '3months' => ['days' => 90,  'price' => 12, 'label' => '3 Months'],
+        '6months' => ['days' => 180, 'price' => 20, 'label' => '6 Months'],
+    ];
 
-    // ── Trang mua gói ────────────────────────────────────────
     public function index()
     {
-        $user        = auth()->user();
-        $vipDays     = (int) config('services.vip.duration_days', 30);
-        $priceVnd    = (int) config('services.vip.price_vnd', 99000);
-        $priceUsd    = (float) config('services.vip.price_usd', 5);
-        $transactions= $user->subscriptions()->latest()->take(5)->get();
-
-        return view('subscription.index', compact('user', 'vipDays', 'priceVnd', 'priceUsd', 'transactions'));
+        return view('subscription.index');
     }
 
-    // ── Thanh toán VNPay ─────────────────────────────────────
-    public function vnpayCheckout(Request $request)
+    public function checkout(Request $request)
     {
-        $user      = auth()->user();
-        $orderCode = 'VIP' . strtoupper(Str::random(8));
-        $amount    = (int) config('services.vip.price_vnd', 99000);
-
-        // Tạo bản ghi pending
-        Subscription::create([
-            'user_id'        => $user->id,
-            'plan'           => 'vip',
-            'payment_method' => 'vnpay',
-            'transaction_id' => $orderCode,
-            'amount'         => $amount,
-            'currency'       => 'VND',
-            'status'         => 'pending',
-        ]);
-
-        $payUrl = $this->vnpay->createPaymentUrl(
-            $amount,
-            $orderCode,
-            'Mua gói VIP 30 ngày - ' . $user->email
-        );
-
-        return redirect($payUrl);
-    }
-
-    // ── Callback VNPay ───────────────────────────────────────
-    public function vnpayReturn(Request $request)
-    {
-        if (!$this->vnpay->verifyReturn($request)) {
-            return redirect()->route('subscription.index')
-                ->with('error', 'Thanh toán thất bại hoặc bị giả mạo.');
+        $plan = $request->input('plan', '1month');
+        if (!isset($this->plans[$plan])) {
+            return redirect()->route('subscription.index')->with('error', 'Invalid plan');
         }
 
-        $orderCode   = $request->get('vnp_TxnRef');
-        $subscription= Subscription::where('transaction_id', $orderCode)->firstOrFail();
+        $planData    = $this->plans[$plan];
+        $price       = $planData['price'];
+        $couponCode  = strtoupper(trim($request->input('coupon_code', '')));
+        $coupon      = null;
+        $discount    = 0;
 
-        if ($subscription->status === 'paid') {
-            return redirect()->route('home')->with('success', 'Gói VIP đã được kích hoạt!');
+        // Apply coupon
+        if ($couponCode) {
+            $coupon = Coupon::where('code', $couponCode)
+                ->where('is_active', true)
+                ->where(function($q) {
+                    $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+                })
+                ->where(function($q) {
+                    $q->whereNull('max_uses')->orWhereRaw('used_count < max_uses');
+                })
+                ->first();
+
+            if ($coupon) {
+                if ($coupon->discount_type === 'percent') {
+                    $discount = round($price * $coupon->discount_value / 100, 2);
+                } else {
+                    $discount = min($coupon->discount_value, $price);
+                }
+                $price = max(0, $price - $discount);
+            }
         }
 
-        $subscription->update([
-            'status'     => 'paid',
-            'starts_at'  => now(),
-            'expires_at' => now()->addDays(30),
-            'metadata'   => $request->all(),
-        ]);
+        // N?u gi� = 0 (100% discount) ? k�ch ho?t VIP ngay
+        if ($price <= 0 && $coupon) {
+            $this->activateVip(auth()->user(), $planData['days']);
+            if ($coupon) $coupon->increment('used_count');
+            return redirect()->route('home')->with('success', 'VIP activated successfully!');
+        }
 
-        $subscription->user->activateVip(30);
+        // Stripe checkout
+        \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
 
-        return redirect()->route('home')
-            ->with('success', '🎉 Kích hoạt VIP thành công! Chúc bạn xem phim vui vẻ.');
-    }
-
-    // ── Thanh toán Stripe ────────────────────────────────────
-    public function stripeCheckout(Request $request)
-    {
-        Stripe::setApiKey(config('services.stripe.secret'));
-
-        $user      = auth()->user();
-        $orderCode = 'VIP' . strtoupper(Str::random(8));
-        $priceUsd  = (float) config('services.vip.price_usd', 5);
-
-        Subscription::create([
-            'user_id'        => $user->id,
-            'plan'           => 'vip',
-            'payment_method' => 'stripe',
-            'transaction_id' => $orderCode,
-            'amount'         => $priceUsd,
-            'currency'       => 'USD',
-            'status'         => 'pending',
-        ]);
-
-        $session = StripeSession::create([
+        $session = \Stripe\Checkout\Session::create([
             'payment_method_types' => ['card'],
-            'line_items'           => [[
+            'line_items' => [[
                 'price_data' => [
                     'currency'     => 'usd',
-                    'unit_amount'  => (int)($priceUsd * 100),
-                    'product_data' => ['name' => 'Gói VIP 30 ngày'],
+                    'product_data' => ['name' => 'DramaSnap VIP - ' . $planData['label']],
+                    'unit_amount'  => (int)($price * 100),
                 ],
                 'quantity' => 1,
             ]],
             'mode'        => 'payment',
-            'success_url' => route('payment.stripe.success') . '?order=' . $orderCode,
+            'success_url' => route('payment.success') . '?plan=' . $plan . '&coupon=' . $couponCode . '&session_id={CHECKOUT_SESSION_ID}',
             'cancel_url'  => route('subscription.index'),
-            'metadata'    => ['order_code' => $orderCode, 'user_id' => $user->id],
+            'metadata'    => [
+                'user_id'     => auth()->id(),
+                'plan'        => $plan,
+                'coupon_code' => $couponCode,
+            ],
         ]);
 
         return redirect($session->url);
     }
 
-    // ── Stripe Success ───────────────────────────────────────
-    public function stripeSuccess(Request $request)
+    public function success(Request $request)
     {
-        $orderCode   = $request->get('order');
-        $subscription= Subscription::where('transaction_id', $orderCode)
-            ->where('status', 'pending')
-            ->firstOrFail();
+        $plan       = $request->input('plan', '1month');
+        $sessionId  = $request->input('session_id');
+        $couponCode = strtoupper(trim($request->input('coupon', '')));
 
-        $subscription->update([
-            'status'     => 'paid',
-            'starts_at'  => now(),
-            'expires_at' => now()->addDays(30),
-        ]);
-
-        $subscription->user->activateVip(30);
-
-        return redirect()->route('home')
-            ->with('success', '🎉 Kích hoạt VIP thành công! Chúc bạn xem phim vui vẻ.');
-    }
-
-    // ── Stripe Webhook (xác nhận server-side) ────────────────
-    public function stripeWebhook(Request $request)
-    {
-        Stripe::setApiKey(config('services.stripe.secret'));
+        if (!$sessionId || !isset($this->plans[$plan])) {
+            return redirect()->route('home');
+        }
 
         try {
-            $event = \Stripe\Webhook::constructEvent(
-                $request->getContent(),
-                $request->header('Stripe-Signature'),
-                config('services.stripe.webhook_secret')
-            );
+            \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
+            $session = \Stripe\Checkout\Session::retrieve($sessionId);
 
-            if ($event->type === 'checkout.session.completed') {
-                $session   = $event->data->object;
-                $orderCode = $session->metadata->order_code ?? null;
+            if ($session->payment_status === 'paid') {
+                $user = auth()->user();
+                $this->activateVip($user, $this->plans[$plan]['days']);
 
-                if ($orderCode) {
-                    $sub = Subscription::where('transaction_id', $orderCode)->first();
-                    if ($sub && $sub->status === 'pending') {
-                        $sub->update(['status' => 'paid', 'starts_at' => now(), 'expires_at' => now()->addDays(30)]);
-                        $sub->user->activateVip(30);
-                    }
+                // Mark coupon used
+                if ($couponCode) {
+                    Coupon::where('code', $couponCode)->increment('used_count');
                 }
-            }
 
-            return response()->json(['status' => 'ok']);
-        } catch (\Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 400);
+                return redirect()->route('home')->with('success',
+                    app()->getLocale() === 'vi'
+                        ? 'Chuc mung! VIP da duoc kich hoat thanh cong!'
+                        : 'Congratulations! VIP activated successfully!'
+                );
+            }
+        } catch (\Exception $e) {
+            return redirect()->route('subscription.index')->with('error', 'Payment verification failed');
         }
+
+        return redirect()->route('subscription.index');
+    }
+
+    // Ki?m tra coupon qua AJAX
+    public function checkCoupon(Request $request)
+    {
+        $code   = strtoupper(trim($request->input('code', '')));
+        $coupon = Coupon::where('code', $code)
+            ->where('is_active', true)
+            ->where(function($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->where(function($q) {
+                $q->whereNull('max_uses')->orWhereRaw('used_count < max_uses');
+            })
+            ->first();
+
+        if ($coupon) {
+            return response()->json([
+                'valid'          => true,
+                'discount_type'  => $coupon->discount_type,
+                'discount_value' => $coupon->discount_value,
+            ]);
+        }
+
+        return response()->json([
+            'valid'   => false,
+            'message' => app()->getLocale() === 'vi' ? 'Ma khong hop le hoac da het han' : 'Invalid or expired coupon',
+        ]);
+    }
+
+    private function activateVip(User $user, int $days): void
+    {
+        $currentExpiry = $user->vip_expires_at && $user->vip_expires_at->isFuture()
+            ? $user->vip_expires_at
+            : now();
+
+        $user->update([
+            'is_vip'          => true,
+            'vip_expires_at'  => $currentExpiry->addDays($days),
+        ]);
     }
 }

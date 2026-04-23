@@ -45,3 +45,4 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/users/{user}/grant-vip',       [AdminController::class, 'grantVip'])->name('grant-vip');
     Route::post('/users/{user}/revoke-vip',      [AdminController::class, 'revokeVip'])->name('revoke-vip');
 });
+Route::get('/coupon/check', [App\Http\Controllers\PaymentController::class, 'checkCoupon']);
