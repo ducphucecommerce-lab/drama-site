@@ -75,7 +75,7 @@ class FetchAllFilms extends Command
 
             for ($try = 1; $try <= 3; $try++) {
                 try {
-                    $res = Http::timeout(3)->withHeaders([
+                    $res = Http::timeout(30)->withHeaders([
                         'X-Timestamp' => $timestamp,
                         'X-Signature' => $signature,
                     ])->get($base . $path);
@@ -124,8 +124,7 @@ class FetchAllFilms extends Command
 
         if (!empty($allFilms)) {
             $cacheKey = "drama:all:{$platform}:vi";
-            Cache::put($cacheKey, $allFilms, now()->addHours(24));
-            Cache::put("drama:all:{$platform}:en", $allFilms, now()->addHours(24));
+            Cache::put($cacheKey, $allFilms, now()->addHours(13));
             $this->info("Cached " . count($allFilms) . " films for $platform");
         } else {
             $this->warn("No films found for $platform - skipping cache");

@@ -3,36 +3,31 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\VipPlan;
 use App\Models\Coupon;
 
 class PaymentController extends Controller
 {
-    // Gói VIP
-    private array $plans = [
-        '1month'  => ['days' => 30,  'price' => 5,  'label' => '1 Month'],
-        '3months' => ['days' => 90,  'price' => 12, 'label' => '3 Months'],
-        '6months' => ['days' => 180, 'price' => 20, 'label' => '6 Months'],
-    ];
-
     public function index()
     {
-        return view('subscription.index');
+        $plans = VipPlan::where('is_active', true)->orderBy('days')->get();
+        return view('subscription.index', compact('plans'));
     }
 
     public function checkout(Request $request)
     {
-        $plan = $request->input('plan', '1month');
-        if (!isset($this->plans[$plan])) {
+        $planKey  = $request->input('plan', '1month');
+        $planData = VipPlan::where('key', $planKey)->where('is_active', true)->first();
+
+        if (!$planData) {
             return redirect()->route('subscription.index')->with('error', 'Invalid plan');
         }
 
-        $planData    = $this->plans[$plan];
-        $price       = $planData['price'];
-        $couponCode  = strtoupper(trim($request->input('coupon_code', '')));
-        $coupon      = null;
-        $discount    = 0;
+        $price      = (float) $planData->price;
+        $couponCode = strtoupper(trim($request->input('coupon_code', '')));
+        $coupon     = null;
+        $discount   = 0;
 
-        // Apply coupon
         if ($couponCode) {
             $coupon = Coupon::where('code', $couponCode)
                 ->where('is_active', true)
@@ -48,38 +43,39 @@ class PaymentController extends Controller
                 if ($coupon->discount_type === 'percent') {
                     $discount = round($price * $coupon->discount_value / 100, 2);
                 } else {
-                    $discount = min($coupon->discount_value, $price);
+                    $discount = min((float)$coupon->discount_value, $price);
                 }
                 $price = max(0, $price - $discount);
             }
         }
 
-        // N?u giá = 0 (100% discount) ? kích ho?t VIP ngay
+        // Free via coupon
         if ($price <= 0 && $coupon) {
-            $this->activateVip(auth()->user(), $planData['days']);
-            if ($coupon) $coupon->increment('used_count');
-            return redirect()->route('home')->with('success', 'VIP activated successfully!');
+            $this->activateVip(auth()->user(), $planData->days);
+            $coupon->increment('used_count');
+            return redirect()->route('home')->with('success',
+                app()->getLocale() === 'vi' ? 'VIP da duoc kich hoat!' : 'VIP activated successfully!'
+            );
         }
 
-        // Stripe checkout
+        // Stripe
         \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
-
         $session = \Stripe\Checkout\Session::create([
             'payment_method_types' => ['card'],
             'line_items' => [[
                 'price_data' => [
                     'currency'     => 'usd',
-                    'product_data' => ['name' => 'DramaSnap VIP - ' . $planData['label']],
+                    'product_data' => ['name' => config('app.name') . ' VIP - ' . $planData->name],
                     'unit_amount'  => (int)($price * 100),
                 ],
                 'quantity' => 1,
             ]],
             'mode'        => 'payment',
-            'success_url' => route('payment.success') . '?plan=' . $plan . '&coupon=' . $couponCode . '&session_id={CHECKOUT_SESSION_ID}',
+            'success_url' => route('payment.success') . '?plan=' . $planKey . '&coupon=' . $couponCode . '&session_id={CHECKOUT_SESSION_ID}',
             'cancel_url'  => route('subscription.index'),
             'metadata'    => [
                 'user_id'     => auth()->id(),
-                'plan'        => $plan,
+                'plan'        => $planKey,
                 'coupon_code' => $couponCode,
             ],
         ]);
@@ -89,30 +85,25 @@ class PaymentController extends Controller
 
     public function success(Request $request)
     {
-        $plan       = $request->input('plan', '1month');
+        $planKey    = $request->input('plan', '1month');
         $sessionId  = $request->input('session_id');
         $couponCode = strtoupper(trim($request->input('coupon', '')));
+        $planData   = VipPlan::where('key', $planKey)->first();
 
-        if (!$sessionId || !isset($this->plans[$plan])) {
-            return redirect()->route('home');
-        }
+        if (!$sessionId || !$planData) return redirect()->route('home');
 
         try {
             \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
             $session = \Stripe\Checkout\Session::retrieve($sessionId);
 
             if ($session->payment_status === 'paid') {
-                $user = auth()->user();
-                $this->activateVip($user, $this->plans[$plan]['days']);
-
-                // Mark coupon used
+                $this->activateVip(auth()->user(), $planData->days);
                 if ($couponCode) {
                     Coupon::where('code', $couponCode)->increment('used_count');
                 }
-
                 return redirect()->route('home')->with('success',
                     app()->getLocale() === 'vi'
-                        ? 'Chuc mung! VIP da duoc kich hoat thanh cong!'
+                        ? 'Chuc mung! VIP da duoc kich hoat!'
                         : 'Congratulations! VIP activated successfully!'
                 );
             }
@@ -123,7 +114,6 @@ class PaymentController extends Controller
         return redirect()->route('subscription.index');
     }
 
-    // Ki?m tra coupon qua AJAX
     public function checkCoupon(Request $request)
     {
         $code   = strtoupper(trim($request->input('code', '')));
@@ -153,13 +143,12 @@ class PaymentController extends Controller
 
     private function activateVip(User $user, int $days): void
     {
-        $currentExpiry = $user->vip_expires_at && $user->vip_expires_at->isFuture()
+        $current = $user->vip_expires_at && $user->vip_expires_at->isFuture()
             ? $user->vip_expires_at
             : now();
-
         $user->update([
-            'is_vip'          => true,
-            'vip_expires_at'  => $currentExpiry->addDays($days),
+            'is_vip'         => true,
+            'vip_expires_at' => $current->addDays($days),
         ]);
     }
 }

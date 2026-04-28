@@ -2,7 +2,7 @@
 @section('title', 'Hồ sơ của tôi')
 
 @section('content')
-<div class="container" style="max-width:800px">
+<div class="container" style="max-width:800px;padding-top:80px;margin:0 auto;padding-left:24px;padding-right:24px">
   <h1 style="font-size:22px;margin-bottom:24px">👤 Hồ sơ của tôi</h1>
 
   {{-- VIP Status card --}}

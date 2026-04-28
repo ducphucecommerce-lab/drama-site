@@ -14,7 +14,7 @@
       <h1 class="hero-title">{{ __('home.hero_title_1') }} <em>{{ __('home.hero_title_em') }}</em><br>{{ __('home.hero_title_2') }}</h1>
       <p class="hero-desc">{{ __('home.hero_desc') }}</p>
       <div class="hero-actions">
-        <a href="{{ route('home', ['tab' => 'trending', 'platform' => request('platform','shortmax')]) }}" class="btn-watch">
+        <a href="{{ route('home', ['tab' => 'trending', 'platform' => request('platform','freereels')]) }}" class="btn-watch">
           <div style="width:0;height:0;border-style:solid;border-width:6px 0 6px 11px;border-color:transparent transparent transparent #fff"></div>
           {{ __('home.watch_now') }}
         </a>
@@ -31,7 +31,7 @@
     <div class="hero-cover-wrap">
       @if(!empty($films[0]))
         <div class="hero-cover-img">
-          <img src="{{ $films[0]['cover'] ?? '' }}" alt="{{ $films[0]['title'] ?? '' }}" loading="eager" fetchpriority="high">
+          <img src="{{ $films[0]['cover'] ?? '' }}" alt="{{ $films[0]['title'] ?? '' }}" loading="lazy">
         </div>
         <div class="hero-cover-overlay">
           <div>
@@ -48,7 +48,9 @@
 {{-- Platform Pills --}}
 <div class="platform-section">
   <div class="platform-pills">
-        @foreach($platforms ?? [] as $key => $name)
+    <a href="{{ route('home', array_merge(request()->query(), ['platform' => 'freereels'])) }}"
+       class="platform-pill {{ request('platform','freereels') === 'freereels' ? 'active' : '' }}">FreeReels</a>
+    @foreach($platforms ?? [] as $key => $name)
       <a href="{{ route('home', array_merge(request()->query(), ['platform' => $key])) }}"
          class="platform-pill {{ request('platform') === $key ? 'active' : '' }}">{{ $name }}</a>
     @endforeach
@@ -111,7 +113,7 @@
   $fid = $film['id'] ?? $film['drama_id'] ?? '';
   if(empty($fid)) continue;
 @endphp
-        <a href="{{ route('films.detail', $fid) }}?platform={{ request('platform','shortmax') }}&lang={{ session('lang','en') }}"
+        <a href="{{ route('films.detail', $fid) }}?platform={{ request('platform','freereels') }}&lang={{ session('lang','en') }}"
            class="film-card">
           <div class="card-thumb">
             <img src="{{ $film['cover'] ?? $film['cover_url'] ?? '' }}"
@@ -125,7 +127,7 @@
           <div class="card-info">
             <p class="card-title">{{ $film['title'] ?? __('home.unknown') }}</p>
             <div class="card-meta">
-              <span class="card-platform-tag">{{ request('platform','shortmax') }}</span>
+              <span class="card-platform-tag">{{ request('platform','freereels') }}</span>
               @if(isset($film['chapters']) || isset($film['episodes']))
                 <span class="card-eps-count">{{ $film['chapters'] ?? $film['episodes'] }} ep</span>
               @endif

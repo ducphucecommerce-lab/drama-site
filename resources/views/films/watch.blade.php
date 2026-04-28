@@ -17,8 +17,28 @@
     {{-- VIDEO --}}
     <div class="watch-player-wrap">
       @if($streamUrl)
-        <video id="player" src="{{ $streamUrl }}" controls autoplay playsinline
+        <video id="player" controls autoplay playsinline
           poster="{{ $film['cover'] ?? '' }}" class="watch-video"></video>
+        <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+        <script>
+          var video = document.getElementById("player");
+          var src = "{{ $streamUrl }}";
+          
+          if (src.includes('.mp4')) {
+            // MP4 - play trực tiếp
+            video.src = src;
+            video.play().catch(function(e){ console.log('Autoplay blocked:', e); });
+          } else if (Hls.isSupported()) {
+            // HLS
+            var hls = new Hls();
+            hls.loadSource(src);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, function(){ video.play(); });
+          } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+            video.src = src;
+            video.play();
+          }
+        </script>
       @else
         <div class="watch-error">
           <div class="watch-error-icon">:(</div>

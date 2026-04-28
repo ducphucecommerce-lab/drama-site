@@ -14,113 +14,75 @@
     </p>
   </div>
 
-  {{-- VIP Benefits --}}
+  {{-- Benefits --}}
   <div class="sub-benefits">
+    @foreach([
+      app()->getLocale() === 'vi' ? 'Xem tat ca cac tap khong gioi han' : 'Watch all episodes unlimited',
+      app()->getLocale() === 'vi' ? 'Khong quang cao' : 'No ads',
+      app()->getLocale() === 'vi' ? 'Truy cap 22+ nen tang phim' : 'Access 22+ drama platforms',
+      app()->getLocale() === 'vi' ? 'Ho tro uu tien' : 'Priority support',
+    ] as $benefit)
     <div class="sub-benefit-item">
       <div class="sub-benefit-icon">&#10003;</div>
-      <span>{{ app()->getLocale() === 'vi' ? 'Xem tat ca cac tap khong gioi han' : 'Watch all episodes unlimited' }}</span>
+      <span>{{ $benefit }}</span>
     </div>
-    <div class="sub-benefit-item">
-      <div class="sub-benefit-icon">&#10003;</div>
-      <span>{{ app()->getLocale() === 'vi' ? 'Khong quang cao' : 'No ads' }}</span>
-    </div>
-    <div class="sub-benefit-item">
-      <div class="sub-benefit-icon">&#10003;</div>
-      <span>{{ app()->getLocale() === 'vi' ? 'Truy cap 22+ nen tang phim' : 'Access 22+ drama platforms' }}</span>
-    </div>
-    <div class="sub-benefit-item">
-      <div class="sub-benefit-icon">&#10003;</div>
-      <span>{{ app()->getLocale() === 'vi' ? 'Ho tro uu tien' : 'Priority support' }}</span>
-    </div>
+    @endforeach
   </div>
 
   {{-- Plans --}}
   <div class="plan-grid">
-
-    {{-- 1 Month --}}
-    <div class="plan-card">
-      <div class="plan-name">{{ app()->getLocale() === 'vi' ? '1 Thang' : '1 Month' }}</div>
-      <div class="plan-price">$5<span>/{{ app()->getLocale() === 'vi' ? 'thang' : 'mo' }}</span></div>
-      <div class="plan-save"></div>
+    @foreach($plans as $plan)
+    <div class="plan-card {{ $plan->is_featured ? 'featured' : '' }}">
+      @if($plan->is_featured)
+        <div class="plan-badge">{{ app()->getLocale() === 'vi' ? 'Pho bien nhat' : 'Most Popular' }}</div>
+      @endif
+      <div class="plan-name">{{ $plan->name }}</div>
+      <div class="plan-price">
+        ${{ number_format($plan->price, 2) }}
+        <span>/{{ $plan->days }} {{ app()->getLocale() === 'vi' ? 'ngay' : 'days' }}</span>
+      </div>
+      @php
+        $monthlyRate = round($plan->price / ($plan->days / 30), 2);
+        $baseRate    = $plans->first()->price;
+        $savePercent = $plan->days > 30 ? round((1 - ($plan->price / ($plan->days/30)) / $baseRate) * 100) : 0;
+      @endphp
+      <div class="plan-save">
+        @if($savePercent > 0)
+          {{ app()->getLocale() === 'vi' ? 'Tiet kiem ' : 'Save ' }}{{ $savePercent }}%
+        @endif
+      </div>
       <ul class="plan-features">
-        <li>{{ app()->getLocale() === 'vi' ? 'Xem khong gioi han 30 ngay' : 'Unlimited for 30 days' }}</li>
-        <li>{{ app()->getLocale() === 'vi' ? 'Gia thap nhat de thu' : 'Best price to try' }}</li>
+        <li>{{ app()->getLocale() === 'vi' ? 'Xem khong gioi han ' . $plan->days . ' ngay' : 'Unlimited for ' . $plan->days . ' days' }}</li>
+        <li>${{ number_format($monthlyRate, 2) }}/{{ app()->getLocale() === 'vi' ? 'thang' : 'month' }}</li>
       </ul>
       @auth
         <form action="{{ route('payment.checkout') }}" method="POST">
           @csrf
-          <input type="hidden" name="plan" value="1month">
-          <input type="hidden" name="coupon_code" id="coupon_1month">
-          <button type="submit" class="btn-plan btn-plan-outline">
+          <input type="hidden" name="plan" value="{{ $plan->key }}">
+          <input type="hidden" name="coupon_code" class="coupon-hidden">
+          <button type="submit" class="btn-plan {{ $plan->is_featured ? '' : 'btn-plan-outline' }}">
             {{ app()->getLocale() === 'vi' ? 'Chon goi nay' : 'Choose Plan' }}
           </button>
         </form>
       @else
-        <a href="{{ route('login') }}" class="btn-plan btn-plan-outline">
+        <a href="{{ route('login') }}" class="btn-plan {{ $plan->is_featured ? '' : 'btn-plan-outline' }}">
           {{ app()->getLocale() === 'vi' ? 'Dang nhap de mua' : 'Sign in to buy' }}
         </a>
       @endauth
     </div>
-
-    {{-- 3 Months (Featured) --}}
-    <div class="plan-card featured">
-      <div class="plan-badge">{{ app()->getLocale() === 'vi' ? 'Pho bien nhat' : 'Most Popular' }}</div>
-      <div class="plan-name">{{ app()->getLocale() === 'vi' ? '3 Thang' : '3 Months' }}</div>
-      <div class="plan-price">$12<span>/3 {{ app()->getLocale() === 'vi' ? 'thang' : 'mo' }}</span></div>
-      <div class="plan-save">{{ app()->getLocale() === 'vi' ? 'Tiet kiem 20%' : 'Save 20%' }}</div>
-      <ul class="plan-features">
-        <li>{{ app()->getLocale() === 'vi' ? 'Xem khong gioi han 90 ngay' : 'Unlimited for 90 days' }}</li>
-        <li>{{ app()->getLocale() === 'vi' ? 'Tiet kiem $3 so voi goi 1 thang' : 'Save $3 vs monthly' }}</li>
-      </ul>
-      @auth
-        <form action="{{ route('payment.checkout') }}" method="POST">
-          @csrf
-          <input type="hidden" name="plan" value="3months">
-          <input type="hidden" name="coupon_code" id="coupon_3months">
-          <button type="submit" class="btn-plan">
-            {{ app()->getLocale() === 'vi' ? 'Chon goi nay' : 'Choose Plan' }}
-          </button>
-        </form>
-      @else
-        <a href="{{ route('login') }}" class="btn-plan">
-          {{ app()->getLocale() === 'vi' ? 'Dang nhap de mua' : 'Sign in to buy' }}
-        </a>
-      @endauth
-    </div>
-
-    {{-- 6 Months --}}
-    <div class="plan-card">
-      <div class="plan-name">{{ app()->getLocale() === 'vi' ? '6 Thang' : '6 Months' }}</div>
-      <div class="plan-price">$20<span>/6 {{ app()->getLocale() === 'vi' ? 'thang' : 'mo' }}</span></div>
-      <div class="plan-save">{{ app()->getLocale() === 'vi' ? 'Tiet kiem 33%' : 'Save 33%' }}</div>
-      <ul class="plan-features">
-        <li>{{ app()->getLocale() === 'vi' ? 'Xem khong gioi han 180 ngay' : 'Unlimited for 180 days' }}</li>
-        <li>{{ app()->getLocale() === 'vi' ? 'Tiet kiem $10 so voi goi 1 thang' : 'Save $10 vs monthly' }}</li>
-      </ul>
-      @auth
-        <form action="{{ route('payment.checkout') }}" method="POST">
-          @csrf
-          <input type="hidden" name="plan" value="6months">
-          <input type="hidden" name="coupon_code" id="coupon_6months">
-          <button type="submit" class="btn-plan btn-plan-outline">
-            {{ app()->getLocale() === 'vi' ? 'Chon goi nay' : 'Choose Plan' }}
-          </button>
-        </form>
-      @else
-        <a href="{{ route('login') }}" class="btn-plan btn-plan-outline">
-          {{ app()->getLocale() === 'vi' ? 'Dang nhap de mua' : 'Sign in to buy' }}
-        </a>
-      @endauth
-    </div>
-
+    @endforeach
   </div>
 
-  {{-- Coupon Code --}}
+  {{-- Coupon --}}
   <div class="coupon-section">
     <div class="coupon-title">{{ app()->getLocale() === 'vi' ? 'Ma khuyen mai' : 'Coupon Code' }}</div>
     <div class="coupon-form">
-      <input type="text" id="couponInput" placeholder="{{ app()->getLocale() === 'vi' ? 'Nhap ma khuyen mai...' : 'Enter coupon code...' }}" class="coupon-input">
-      <button onclick="applyCoupon()" class="coupon-btn">{{ app()->getLocale() === 'vi' ? 'Ap dung' : 'Apply' }}</button>
+      <input type="text" id="couponInput"
+        placeholder="{{ app()->getLocale() === 'vi' ? 'Nhap ma khuyen mai...' : 'Enter coupon code...' }}"
+        class="coupon-input" style="text-transform:uppercase">
+      <button onclick="applyCoupon()" class="coupon-btn">
+        {{ app()->getLocale() === 'vi' ? 'Ap dung' : 'Apply' }}
+      </button>
     </div>
     <div id="couponMsg" class="coupon-msg"></div>
   </div>
@@ -131,7 +93,7 @@
       <div class="current-vip-title">{{ app()->getLocale() === 'vi' ? 'Goi VIP hien tai cua ban' : 'Your current VIP' }}</div>
       <div class="current-vip-expire">
         {{ app()->getLocale() === 'vi' ? 'Het han:' : 'Expires:' }}
-        {{ auth()->user()->vip_expires_at ? auth()->user()->vip_expires_at->format('d/m/Y') : 'N/A' }}
+        {{ auth()->user()->vip_expires_at ? auth()->user()->vip_expires_at->format('d/m/Y H:i') : 'N/A' }}
       </div>
     </div>
     @endif
@@ -141,12 +103,12 @@
 
 @push('styles')
 <style>
-.sub-wrap{padding:30px 24px 100px;max-width:960px;margin:0 auto}
+.sub-wrap{padding:90px 24px 100px;max-width:960px;margin:0 auto}
 .sub-header{text-align:center;margin-bottom:24px}
 .sub-title{font-size:28px;font-weight:700;color:#fff;margin-bottom:8px}
 .sub-title span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .sub-desc{font-size:14px;color:var(--text2)}
-.sub-benefits{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-bottom:28px}
+.sub-benefits{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:28px}
 .sub-benefit-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:20px;padding:7px 14px}
 .sub-benefit-icon{width:18px;height:18px;border-radius:50%;background:rgba(52,211,153,0.2);color:#34d399;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
 .plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
@@ -158,7 +120,7 @@
 .plan-price span{font-size:13px;font-weight:400;color:var(--text2)}
 .plan-save{font-size:12px;color:#34d399;margin-bottom:14px;min-height:18px}
 .plan-features{list-style:none;margin-bottom:18px;display:flex;flex-direction:column;gap:8px}
-.plan-features li{font-size:13px;color:var(--text2);display:flex;align-items:center;gap:7px;padding-left:4px}
+.plan-features li{font-size:13px;color:var(--text2);display:flex;align-items:center;gap:7px}
 .plan-features li::before{content:'?';color:#34d399;font-size:12px;flex-shrink:0}
 .btn-plan{width:100%;background:var(--grad);border:none;border-radius:var(--radius);padding:11px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;transition:opacity .2s;display:block;text-align:center;text-decoration:none}
 .btn-plan:hover{opacity:0.88}
@@ -180,7 +142,7 @@
 @media(max-width:768px){
   .plan-grid{grid-template-columns:1fr;gap:20px}
   .plan-card.featured{margin-top:12px}
-  .sub-wrap{padding:20px 16px 100px}
+  .sub-wrap{padding:80px 16px 100px}
   .sub-title{font-size:22px}
 }
 </style>
@@ -188,6 +150,8 @@
 
 @push('scripts')
 <script>
+var appliedCoupon = '';
+
 function applyCoupon() {
   var code = document.getElementById('couponInput').value.trim().toUpperCase();
   var msg  = document.getElementById('couponMsg');
@@ -197,22 +161,20 @@ function applyCoupon() {
     .then(function(r){ return r.json(); })
     .then(function(data){
       if (data.valid) {
+        appliedCoupon = code;
         msg.className = 'coupon-msg success';
-        msg.textContent = (data.discount_type === 'percent')
-          ? 'Ma hop le! Giam ' + data.discount_value + '%'
-          : 'Ma hop le! Giam $' + data.discount_value;
-        document.getElementById('coupon_1month').value  = code;
-        document.getElementById('coupon_3months').value = code;
-        document.getElementById('coupon_6months').value = code;
+        msg.textContent = data.discount_type === 'percent'
+          ? '{{ app()->getLocale() === "vi" ? "Ma hop le! Giam " : "Valid! Discount " }}' + data.discount_value + '%'
+          : '{{ app()->getLocale() === "vi" ? "Ma hop le! Giam $" : "Valid! Discount $" }}' + data.discount_value;
+        // Set coupon to all forms
+        document.querySelectorAll('.coupon-hidden').forEach(function(el){ el.value = code; });
       } else {
         msg.className = 'coupon-msg error';
-        msg.textContent = data.message || 'Ma khong hop le';
+        msg.textContent = data.message || '{{ app()->getLocale() === "vi" ? "Ma khong hop le" : "Invalid coupon" }}';
       }
-    }).catch(function(){
-      msg.className = 'coupon-msg error';
-      msg.textContent = 'Loi ket noi, thu lai sau';
     });
 }
+
 document.getElementById('couponInput').addEventListener('keypress', function(e){
   if (e.key === 'Enter') applyCoupon();
 });

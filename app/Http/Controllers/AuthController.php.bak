@@ -37,25 +37,18 @@ class AuthController extends Controller
         ]);
 
         // Tao user - VIP 30 phut chi set 1 lan duy nhat khi dang ky
-        // Kiem tra IP da dung trial chua
-        $ip = $request->ip();
-        $ipUsedTrial = \Illuminate\Support\Facades\Cache::get("vip_trial_ip:{$ip}", false);
-        $isVip = !$ipUsedTrial;
-        $vipExpires = $isVip ? now()->addMinutes(30) : null;
         $user = User::create([
             'name'           => $request->name,
             'email'          => $request->email,
             'password'       => Hash::make($request->password),
-            'is_vip'         => $isVip,
-            'vip_expires_at' => $vipExpires,
+            'is_vip'         => true,
+            'vip_expires_at' => now()->addMinutes(30),
         ]);
 
         Auth::login($user);
 
-        if ($isVip) {
-            \Illuminate\Support\Facades\Cache::put("vip_trial_ip:{$ip}", true, now()->addDays(365));
-            session(["show_vip_trial" => true]);
-        }
+        // Flag de hien popup - chi hien 1 lan
+        session(['show_vip_trial' => true]);
 
         return redirect()->route('home');
     }

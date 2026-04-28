@@ -20,19 +20,10 @@ class FilmController extends Controller
             ? $this->api->getTrending($platform)
             : $this->api->getHomeList($platform, $page);
 
-        $platforms = \Illuminate\Support\Facades\Cache::remember("active_platforms", 720, function() {
-            // Lấy platforms có phim trong DB
-            $activePlatforms = \App\Models\Film::select("platform")
-                ->distinct()
-                ->pluck("platform")
-                ->toArray();
-
-            $allPlatforms = $this->api->getPlatforms();
-
-            return array_filter($allPlatforms, function($key) use ($activePlatforms) {
-                return in_array($key, $activePlatforms);
-            }, ARRAY_FILTER_USE_KEY);
-        });
+        $allPlatforms = $this->api->getPlatforms();
+        $platforms = array_filter($allPlatforms, function($key) {
+            return !empty($this->api->getAllFilms($key));
+        }, ARRAY_FILTER_USE_KEY);
 
         return view('films.index', compact('films', 'platforms', 'platform', 'tab', 'page'));
     }
@@ -93,19 +84,10 @@ class FilmController extends Controller
             $results = $this->api->search($keyword, $platform);
         }
 
-        $platforms = \Illuminate\Support\Facades\Cache::remember("active_platforms", 720, function() {
-            // Lấy platforms có phim trong DB
-            $activePlatforms = \App\Models\Film::select("platform")
-                ->distinct()
-                ->pluck("platform")
-                ->toArray();
-
-            $allPlatforms = $this->api->getPlatforms();
-
-            return array_filter($allPlatforms, function($key) use ($activePlatforms) {
-                return in_array($key, $activePlatforms);
-            }, ARRAY_FILTER_USE_KEY);
-        });
+        $allPlatforms = $this->api->getPlatforms();
+        $platforms = array_filter($allPlatforms, function($key) {
+            return !empty($this->api->getAllFilms($key));
+        }, ARRAY_FILTER_USE_KEY);
 
         return view('films.search', compact('keyword', 'results', 'platforms', 'platform'));
     }
@@ -118,7 +100,6 @@ class FilmController extends Controller
         $films    = $this->api->getByGenre($genre, $platform, $page);
         $platforms= $this->api->getPlatforms();
 
-        $keyword = null;
-        return view('films.genre', compact('genre', 'films', 'platforms', 'platform', 'page', 'keyword'));
+        return view('films.genre', compact('genre', 'films', 'platforms', 'platform', 'page'));
     }
 }

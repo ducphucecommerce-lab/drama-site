@@ -8,7 +8,7 @@
   {{-- Stats --}}
   <div class="stats-grid">
     <div class="stat-card">
-      <div class="stat-num">{{ number_format($stats['total_users']) }}</div>
+      <div class="stat-num">{{ number_format($stats['users']) }}</div>
       <div class="stat-label">Tổng users</div>
     </div>
     <div class="stat-card vip">
